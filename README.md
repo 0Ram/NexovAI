@@ -99,7 +99,7 @@ A real-time voice-based doctor appointment booking system built for the **SDE In
 
 ### 2. Clone the Repository
 ```bash
-git clone <your-repo-link>
+git clone https://github.com/0Ram/NexovAI.git
 cd NexovAI
 ```
 

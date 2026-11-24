@@ -65,18 +65,10 @@ Record your screen showing the browser running the dashboard (`http://localhost:
 
 ## 4. How to Submit
 
-1. **Push to GitHub**:
-   ```bash
-   git init
-   git add .
-   git commit -m "feat: complete Voice AI Doctor Appointment Assistant"
-   git branch -M main
-   git remote add origin https://github.com/<your-username>/<repo-name>.git
-   git push -u origin main
-   ```
-2. **Submit via Google Form**:
-   - Form URL: [https://docs.google.com/forms/d/e/1FAIpQLSdruhcgKFC4LjnlwHfYDRZoGsa0r-qy4k68SJ8RsmxsPbYxpg/viewform?usp=publish-editor](https://docs.google.com/forms/d/e/1FAIpQLSdruhcgKFC4LjnlwHfYDRZoGsa0r-qy4k68SJ8RsmxsPbYxpg/viewform?usp=publish-editor)
-   - Attach your GitHub repository URL
-   - Attach your recording video link (Google Drive / Loom / YouTube unlisted)
-   - Paste the Pipeline Description above
-   - Submit before **Wednesday, 25 November, 11:00 PM IST**
+- **GitHub Repository Link**: **https://github.com/0Ram/NexovAI**
+- **Form URL**: [https://docs.google.com/forms/d/e/1FAIpQLSdruhcgKFC4LjnlwHfYDRZoGsa0r-qy4k68SJ8RsmxsPbYxpg/viewform?usp=publish-editor](https://docs.google.com/forms/d/e/1FAIpQLSdruhcgKFC4LjnlwHfYDRZoGsa0r-qy4k68SJ8RsmxsPbYxpg/viewform?usp=publish-editor)
+- **Attach**:
+  1. Your GitHub repository URL: `https://github.com/0Ram/NexovAI`
+  2. Your short video recording link (Google Drive / Loom / YouTube unlisted)
+  3. Paste the Pipeline Description from Section 1 above.
+- **Deadline**: Wednesday, 25 November, 11:00 PM IST
