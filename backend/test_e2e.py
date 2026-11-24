@@ -42,19 +42,19 @@ async def run_e2e_verification():
         print("\n=== Step 3: Checking Doctor Availability ===")
         await ws.send(json.dumps({
             "type": "text_message",
-            "text": "What slots are available for Dr. Michael Chen?"
+            "text": "What slots are available for Dr. Rajesh Sharma?"
         }))
         user_echo = json.loads(await ws.recv())
         print("Caller Echo:", user_echo["text"])
         agent_reply1 = json.loads(await ws.recv())
         print("Nexa Reply:", agent_reply1["text"])
-        assert "open slots" in agent_reply1["text"].lower() or "chen" in agent_reply1["text"].lower()
+        assert "open slots" in agent_reply1["text"].lower() or "sharma" in agent_reply1["text"].lower()
 
         # Inquiry 2: Booking with phone number
         print("\n=== Step 4: Requesting Booking with Phone Number ===")
         await ws.send(json.dumps({
             "type": "text_message",
-            "text": "Please book Dr. Chen tomorrow at 10:30 AM, my phone number is 9876543210"
+            "text": "Please book Dr. Sharma tomorrow at 10:30 AM, my phone number is 9876543210"
         }))
         user_echo2 = json.loads(await ws.recv())
         print("Caller Echo:", user_echo2["text"])

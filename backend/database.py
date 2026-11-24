@@ -56,10 +56,10 @@ def init_db():
     cursor.execute("SELECT COUNT(*) as count FROM doctors")
     if cursor.fetchone()["count"] == 0:
         doctors_data = [
-            ("Dr. Sarah Jenkins", "Cardiology", 14, "Suite 302, Heart Center", "Senior Cardiologist specializing in preventive heart health and arrhythmias.", "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=300"),
-            ("Dr. Michael Chen", "Dermatology", 9, "Room 105, Skin Clinic", "Consultant Dermatologist focusing on clinical acne treatments and skin wellness.", "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=300"),
-            ("Dr. Priya Patel", "General Medicine", 12, "Room 201, Primary Care", "Family Physician dedicated to comprehensive wellness, checkups and fever management.", "https://images.unsplash.com/photo-1594824813637-29566952778a?auto=format&fit=crop&q=80&w=300"),
-            ("Dr. James Wilson", "Orthopedics", 16, "Room 410, Bone & Joint Wing", "Orthopedic Surgeon expert in sports injuries, knee pain and joint rehabilitation.", "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=300"),
+            ("Dr. Rajesh Sharma", "Cardiology", 15, "Suite 302, Heart Center", "Senior Consultant Cardiologist specializing in preventive heart health and clinical arrhythmias.", "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=300"),
+            ("Dr. Ananya Iyer", "Dermatology", 10, "Room 105, Skin Clinic", "Consultant Dermatologist and Trichologist focusing on skin health, aesthetics and clinical acne care.", "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=300"),
+            ("Dr. Priya Patel", "General Medicine", 12, "Room 201, Primary Care", "Consultant Physician dedicated to comprehensive family wellness, preventive health and primary care.", "https://images.unsplash.com/photo-1594824813637-29566952778a?auto=format&fit=crop&q=80&w=300"),
+            ("Dr. Vikram Malhotra", "Orthopedics", 16, "Room 410, Bone & Joint Wing", "Senior Orthopedic Surgeon expert in joint rehabilitation, knee care and sports injury medicine.", "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=300"),
         ]
         cursor.executemany("""
             INSERT INTO doctors (name, specialty, experience_years, clinic_room, bio, avatar)

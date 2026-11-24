@@ -145,14 +145,14 @@ class ConversationalDoctorAssistant:
                 phone = self._extract_phone(text)
                 # Detect doctor requested
                 doc_name = None
-                if "chen" in text or "michael" in text or "dermatol" in text:
-                    doc_name = "Dr. Michael Chen"
-                elif "jenkins" in text or "sarah" in text or "cardio" in text:
-                    doc_name = "Dr. Sarah Jenkins"
+                if "sharma" in text or "rajesh" in text or "cardio" in text:
+                    doc_name = "Dr. Rajesh Sharma"
+                elif "iyer" in text or "ananya" in text or "dermatol" in text or "skin" in text:
+                    doc_name = "Dr. Ananya Iyer"
                 elif "patel" in text or "priya" in text or "general" in text or "medicine" in text:
                     doc_name = "Dr. Priya Patel"
-                elif "wilson" in text or "james" in text or "ortho" in text:
-                    doc_name = "Dr. James Wilson"
+                elif "malhotra" in text or "vikram" in text or "ortho" in text or "bone" in text:
+                    doc_name = "Dr. Vikram Malhotra"
 
                 # Detect slot time
                 time_slot = None
@@ -177,7 +177,7 @@ class ConversationalDoctorAssistant:
                     time_slot = "10:30 AM" # default convenient morning slot
 
                 if not doc_name:
-                    doc_name = "Dr. Michael Chen"
+                    doc_name = "Dr. Rajesh Sharma"
 
                 if phone:
                     self.state = "awaiting_booking_confirmation"
@@ -226,14 +226,14 @@ class ConversationalDoctorAssistant:
                 elif "ortho" in text or "bone" in text or "joint" in text:
                     target_specialty = "Orthopedics"
 
-                if "chen" in text:
-                    target_doc = "Dr. Michael Chen"
-                elif "jenkins" in text or "sarah" in text:
-                    target_doc = "Dr. Sarah Jenkins"
+                if "sharma" in text or "rajesh" in text:
+                    target_doc = "Dr. Rajesh Sharma"
+                elif "iyer" in text or "ananya" in text:
+                    target_doc = "Dr. Ananya Iyer"
                 elif "patel" in text or "priya" in text:
                     target_doc = "Dr. Priya Patel"
-                elif "wilson" in text or "james" in text:
-                    target_doc = "Dr. James Wilson"
+                elif "malhotra" in text or "vikram" in text:
+                    target_doc = "Dr. Vikram Malhotra"
 
                 slots = get_available_slots(doctor_name=target_doc, specialty=target_specialty)
                 if slots:

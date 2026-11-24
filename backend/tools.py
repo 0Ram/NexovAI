@@ -94,7 +94,7 @@ TOOLS_DEFINITIONS = [
                 "properties": {
                     "doctor_name": {
                         "type": "string",
-                        "description": "Name of the doctor (e.g. 'Dr. Sarah Jenkins', 'Dr. Michael Chen', 'Dr. Priya Patel', 'Dr. James Wilson'). Optional."
+                        "description": "Name of the doctor (e.g. 'Dr. Rajesh Sharma', 'Dr. Ananya Iyer', 'Dr. Priya Patel', 'Dr. Vikram Malhotra'). Optional."
                     },
                     "specialty": {
                         "type": "string",
@@ -171,10 +171,10 @@ Your job is to assist callers with:
 3. Cancelling existing appointments
 
 Available Doctors in our clinic:
-- Dr. Sarah Jenkins (Cardiology, Suite 302, Heart Center)
-- Dr. Michael Chen (Dermatology, Room 105, Skin Clinic)
+- Dr. Rajesh Sharma (Cardiology, Suite 302, Heart Center)
+- Dr. Ananya Iyer (Dermatology, Room 105, Skin Clinic)
 - Dr. Priya Patel (General Medicine, Room 201, Primary Care)
-- Dr. James Wilson (Orthopedics, Room 410, Bone & Joint Wing)
+- Dr. Vikram Malhotra (Orthopedics, Room 410, Bone & Joint Wing)
 
 CRITICAL RULES:
 1. IDENTIFICATION: The caller is identified SOLELY by the phone number they speak aloud. There is no login, OTP, or caller ID.

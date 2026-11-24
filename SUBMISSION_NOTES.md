@@ -38,14 +38,14 @@ Record your screen showing the browser running the dashboard (`http://localhost:
 - Waveform visualizer reacts to voice.
 
 ### **Step 3: Check Doctor Availability (0:40 - 1:10)**
-- **Caller speaks**: *"What slots are available for Dr. Michael Chen?"*
-- **Agent replies**: *"We have several open slots with Dr. Michael Chen on Thursday at 9:00 AM, 10:30 AM, and 2:00 PM. Would you like me to book one of these for you?"*
+- **Caller speaks**: *"What slots are available for Dr. Rajesh Sharma?"*
+- **Agent replies**: *"We have several open slots with Dr. Rajesh Sharma on Thursday at 9:00 AM, 10:30 AM, and 2:00 PM. Would you like me to book one of these for you?"*
 
 ### **Step 4: Book Appointment with Phone Number & Confirmation (1:10 - 1:50)**
-- **Caller speaks**: *"Please book Dr. Chen tomorrow at 10:30 AM, my phone number is 9876543210."*
-- **Agent reads back the phone number**: *"I have a slot available with Dr. Michael Chen tomorrow at 10:30 AM. Before I book it, just to confirm, is your phone number 9-8-7-6-5-4-3-2-1-0?"*
+- **Caller speaks**: *"Please book Dr. Sharma tomorrow at 10:30 AM, my phone number is 9876543210."*
+- **Agent reads back the phone number**: *"I have a slot available with Dr. Rajesh Sharma tomorrow at 10:30 AM. Before I book it, just to confirm, is your phone number 9-8-7-6-5-4-3-2-1-0?"*
 - **Caller confirms**: *"Yes, that's correct."*
-- **Agent confirms booking**: *"Thank you! Your appointment with Dr. Michael Chen (Dermatology) has been confirmed for tomorrow at 10:30 AM. Your confirmation ID is #1."*
+- **Agent confirms booking**: *"Thank you! Your appointment with Dr. Rajesh Sharma (Cardiology) has been confirmed for tomorrow at 10:30 AM. Your confirmation ID is #1."*
 - Highlight in the video:
   1. The booking confirmation card pops up inside the phone screen.
   2. The Appointments table in the background highlights and updates with Appointment #1!

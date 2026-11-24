@@ -159,16 +159,16 @@ Total open slots: 32
 Received 2 (Greeting): Hello! Thank you for calling Nexov Health Clinic...
 
 === Step 3: Checking Doctor Availability ===
-Caller: What slots are available for Dr. Michael Chen?
-Nexa: We have several open slots. For example: Dr. Michael Chen on Thursday at 02:00 PM...
+Caller: What slots are available for Dr. Rajesh Sharma?
+Nexa: We have several open slots. For example: Dr. Rajesh Sharma on Thursday at 02:00 PM...
 
 === Step 4: Requesting Booking with Phone Number ===
-Caller: Please book Dr. Chen tomorrow at 10:30 AM, my phone number is 9876543210
+Caller: Please book Dr. Sharma tomorrow at 10:30 AM, my phone number is 9876543210
 Nexa (Read-back): Before I book it, just to confirm, is your phone number 9 8 7 6 5 4 3 2 1 0?
 
 === Step 5: Confirming Phone Number ===
 Caller: Yes, that is correct
-Nexa: Thank you! Your appointment with Dr. Michael Chen has been confirmed...
+Nexa: Thank you! Your appointment with Dr. Rajesh Sharma has been confirmed...
 Appointment #1 booked successfully!
 
 === Step 6: Requesting Cancellation ===
@@ -177,7 +177,7 @@ Nexa (Read-back): Just to confirm, is your phone number 9 8 7 6 5 4 3 2 1 0?
 
 === Step 7: Confirming Cancellation ===
 Caller: Yes please cancel it
-Nexa: Your appointment with Dr. Michael Chen has been successfully cancelled.
+Nexa: Your appointment with Dr. Rajesh Sharma has been successfully cancelled.
 
 === ALL END-TO-END FLOW TESTS PASSED WITH 100% SUCCESS ===
 ```
