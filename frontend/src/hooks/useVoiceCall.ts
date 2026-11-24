@@ -19,6 +19,13 @@ export function useVoiceCall({ onAppointmentUpdated }: UseVoiceCallProps = {}) {
   const micStreamRef = useRef<MediaStream | null>(null);
   const timerIntervalRef = useRef<number | null>(null);
   const nextPlayTimeRef = useRef<number>(0);
+  const callStatusRef = useRef<CallStatus>('idle');
+  const speechRecognitionRef = useRef<any>(null);
+  const isAgentSpeakingRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    callStatusRef.current = callStatus;
+  }, [callStatus]);
 
   // Play audio chunk received from backend (16-bit PCM 16kHz mono)
   const playPCMChunk = useCallback((pcmData: ArrayBuffer) => {
@@ -43,7 +50,6 @@ export function useVoiceCall({ onAppointmentUpdated }: UseVoiceCallProps = {}) {
       const source = ctx.createBufferSource();
       source.buffer = buffer;
 
-      // Connect to analyser so agent voice also shows on waveform
       if (analyserRef.current) {
         source.connect(analyserRef.current);
         analyserRef.current.connect(ctx.destination);
@@ -60,7 +66,6 @@ export function useVoiceCall({ onAppointmentUpdated }: UseVoiceCallProps = {}) {
     }
   }, []);
 
-  // Convert float32 audio frame to 16-bit PCM
   const floatTo16BitPCM = (input: Float32Array): ArrayBuffer => {
     const output = new Int16Array(input.length);
     for (let i = 0; i < input.length; i++) {
@@ -70,11 +75,64 @@ export function useVoiceCall({ onAppointmentUpdated }: UseVoiceCallProps = {}) {
     return output.buffer;
   };
 
+  // Send text message over websocket
+  const sendTextMessage = useCallback((text: string) => {
+    if (!text.trim()) return;
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        type: 'text_message',
+        text: text.trim(),
+      }));
+    }
+  }, []);
+
+  // End Call
+  const endCall = useCallback(() => {
+    phoneSounds.playEndCallTone();
+    setCallStatus('ended');
+    callStatusRef.current = 'ended';
+
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.stop();
+      } catch {}
+      speechRecognitionRef.current = null;
+    }
+
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+
+    if (socketRef.current) {
+      if (socketRef.current.readyState === WebSocket.OPEN) {
+        socketRef.current.send(JSON.stringify({ type: 'end_call' }));
+      }
+      socketRef.current.close();
+      socketRef.current = null;
+    }
+
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach((track) => track.stop());
+      micStreamRef.current = null;
+    }
+
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+  }, []);
+
   // Start Voice Call
   const startCall = useCallback(async () => {
-    if (callStatus !== 'idle' && callStatus !== 'ended') return;
+    if (callStatusRef.current !== 'idle' && callStatusRef.current !== 'ended') return;
 
     setCallStatus('calling');
+    callStatusRef.current = 'calling';
     setCallDuration(0);
     setTranscripts([]);
     setLatestBooking(null);
@@ -108,7 +166,6 @@ export function useVoiceCall({ onAppointmentUpdated }: UseVoiceCallProps = {}) {
       const micSource = audioCtx.createMediaStreamSource(micStream);
       micSource.connect(analyser);
 
-      // ScriptProcessor for streaming mic audio
       const scriptProcessor = audioCtx.createScriptProcessor(4096, 1, 1);
       micSource.connect(scriptProcessor);
       scriptProcessor.connect(audioCtx.destination);
@@ -122,30 +179,69 @@ export function useVoiceCall({ onAppointmentUpdated }: UseVoiceCallProps = {}) {
         socketRef.current.send(pcmBuffer);
       };
     } catch (err) {
-      console.warn('Microphone permission not granted or unavailable. Text/Simulated voice mode active:', err);
+      console.warn('Microphone permission not granted or unavailable:', err);
     }
 
-    // 3. Establish WebSocket connection with Backend
+    // 3. Connect WebSocket
     const wsUrl = `ws://${window.location.hostname}:8000/ws/call`;
     const ws = new WebSocket(wsUrl);
     ws.binaryType = 'arraybuffer';
     socketRef.current = ws;
 
     ws.onopen = () => {
-      // Simulate ringing time then connect
       setTimeout(() => {
         phoneSounds.playConnectedChime();
         setCallStatus('connected');
+        callStatusRef.current = 'connected';
+
         // Start duration timer
         timerIntervalRef.current = window.setInterval(() => {
           setCallDuration((prev) => prev + 1);
         }, 1000);
+
+        // 4. Initialize Real-Time Browser Speech Recognition (Voice Input)
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (SpeechRecognition) {
+          try {
+            const recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onresult = (e: any) => {
+              if (isAgentSpeakingRef.current) return; // avoid speaker echo
+              const lastIdx = e.results.length - 1;
+              const spoken = e.results[lastIdx][0]?.transcript;
+              if (spoken && spoken.trim()) {
+                console.log('User spoken voice captured:', spoken.trim());
+                sendTextMessage(spoken.trim());
+              }
+            };
+
+            recognition.onerror = (e: any) => {
+              console.warn('Speech recognition warning:', e.error);
+            };
+
+            recognition.onend = () => {
+              // Automatically keep listening while call is connected
+              if (callStatusRef.current === 'connected') {
+                try {
+                  recognition.start();
+                } catch {}
+              }
+            };
+
+            recognition.start();
+            speechRecognitionRef.current = recognition;
+          } catch (err) {
+            console.warn('Speech recognition start failed:', err);
+          }
+        }
       }, 1500);
     };
 
     ws.onmessage = (event) => {
       if (event.data instanceof ArrayBuffer) {
-        // Binary audio chunk from TTS
         playPCMChunk(event.data);
       } else if (typeof event.data === 'string') {
         try {
@@ -161,24 +257,32 @@ export function useVoiceCall({ onAppointmentUpdated }: UseVoiceCallProps = {}) {
               is_final: msg.is_final ?? true,
             };
             setTranscripts((prev) => {
-              // If last was interim from caller, replace it
               if (prev.length > 0 && prev[prev.length - 1].speaker === 'caller' && !prev[prev.length - 1].is_final && msg.speaker === 'caller') {
                 return [...prev.slice(0, -1), newMsg];
               }
               return [...prev, newMsg];
             });
 
-            // If agent speaks in browser without mic/TTS, synthesize with Web Speech API
-            if (msg.speaker === 'agent' && 'speechSynthesis' in window && !event.data.includes('binary')) {
+            // Speak out loud agent responses using speech synthesis
+            if (msg.speaker === 'agent' && 'speechSynthesis' in window) {
               try {
                 window.speechSynthesis.cancel();
                 const utterance = new SpeechSynthesisUtterance(msg.text);
                 utterance.rate = 1.0;
                 utterance.pitch = 1.05;
+
+                isAgentSpeakingRef.current = true;
+                utterance.onend = () => {
+                  setTimeout(() => {
+                    isAgentSpeakingRef.current = false;
+                  }, 400);
+                };
+                utterance.onerror = () => {
+                  isAgentSpeakingRef.current = false;
+                };
+
                 window.speechSynthesis.speak(utterance);
-              } catch {
-                // speech synthesis fallback
-              }
+              } catch {}
             }
           } else if (msg.type === 'appointment_updated') {
             if (msg.action === 'booked' && msg.data) {
@@ -189,7 +293,7 @@ export function useVoiceCall({ onAppointmentUpdated }: UseVoiceCallProps = {}) {
             }
           }
         } catch (e) {
-          console.error('Error handling websocket text frame:', e);
+          console.error('Error handling websocket frame:', e);
         }
       }
     };
@@ -199,62 +303,23 @@ export function useVoiceCall({ onAppointmentUpdated }: UseVoiceCallProps = {}) {
     };
 
     ws.onerror = (e) => {
-      console.error('WebSocket encountered error:', e);
+      console.error('WebSocket error:', e);
     };
-  }, [callStatus, isMuted, playPCMChunk, onAppointmentUpdated]);
-
-  // End Call
-  const endCall = useCallback(() => {
-    phoneSounds.playEndCallTone();
-    setCallStatus('ended');
-
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current);
-      timerIntervalRef.current = null;
-    }
-
-    if (socketRef.current) {
-      if (socketRef.current.readyState === WebSocket.OPEN) {
-        socketRef.current.send(JSON.stringify({ type: 'end_call' }));
-      }
-      socketRef.current.close();
-      socketRef.current = null;
-    }
-
-    if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach((track) => track.stop());
-      micStreamRef.current = null;
-    }
-
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close().catch(() => {});
-      audioContextRef.current = null;
-    }
-
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-  }, []);
+  }, [isMuted, playPCMChunk, onAppointmentUpdated, sendTextMessage, endCall]);
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => !prev);
-  }, []);
-
-  // Send text message (for fast testing or voice transcript injection)
-  const sendTextMessage = useCallback((text: string) => {
-    if (!text.trim()) return;
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
-        type: 'text_message',
-        text: text.trim(),
-      }));
-    }
   }, []);
 
   useEffect(() => {
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       phoneSounds.stopRinging();
+      if (speechRecognitionRef.current) {
+        try {
+          speechRecognitionRef.current.stop();
+        } catch {}
+      }
     };
   }, []);
 
