@@ -27,6 +27,7 @@ from pipecat.frames.frames import (
 
 from backend.tools import (
     TOOLS_DEFINITIONS,
+    PIPECAT_TOOLS,
     SYSTEM_PROMPT,
     handle_check_doctor_availability,
     handle_book_appointment,
@@ -112,7 +113,7 @@ async def run_pipecat_pipeline(
         api_key=google_api_key,
         model="gemini-2.5-flash",
         system_instruction=SYSTEM_PROMPT,
-        tools=TOOLS_DEFINITIONS
+        tools=PIPECAT_TOOLS
     )
 
     # Register the 3 required tools
@@ -130,7 +131,7 @@ async def run_pipecat_pipeline(
     # 6. Context & Aggregators
     context = LLMContext(
         messages=[{"role": "system", "content": SYSTEM_PROMPT}],
-        tools=TOOLS_DEFINITIONS
+        tools=PIPECAT_TOOLS
     )
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(context)
 

@@ -82,6 +82,72 @@ async def handle_cancel_appointment(params):
         })
     await params.result_callback(res)
 
+from pipecat.adapters.llm.schemas.function_schema import FunctionSchema
+
+PIPECAT_TOOLS = [
+    FunctionSchema(
+        name="check_doctor_availability",
+        description="Check available appointment slots for a doctor, medical specialty, or specific date.",
+        properties={
+            "doctor_name": {
+                "type": "string",
+                "description": "Name of the doctor (e.g. 'Dr. Rajesh Sharma', 'Dr. Ananya Iyer', 'Dr. Priya Patel', 'Dr. Vikram Malhotra'). Optional."
+            },
+            "specialty": {
+                "type": "string",
+                "description": "Medical specialty (e.g. 'Cardiology', 'Dermatology', 'General Medicine', 'Orthopedics'). Optional."
+            },
+            "date": {
+                "type": "string",
+                "description": "Preferred date or day (e.g. 'Tomorrow', 'Wednesday', 'Thursday'). Optional."
+            }
+        },
+        required=[]
+    ),
+    FunctionSchema(
+        name="book_appointment",
+        description="Book a doctor appointment slot for the caller. Only invoke this AFTER the caller has provided their phone number AND you have read the phone number back to them and received their confirmation.",
+        properties={
+            "patient_phone": {
+                "type": "string",
+                "description": "The caller's confirmed phone number (digits only, e.g. '9876543210')."
+            },
+            "doctor_name": {
+                "type": "string",
+                "description": "Name of the doctor to book with."
+            },
+            "slot_time": {
+                "type": "string",
+                "description": "The time of the slot (e.g. '09:00 AM', '10:30 AM', '02:00 PM', '04:30 PM')."
+            },
+            "date": {
+                "type": "string",
+                "description": "The date or day of the slot (e.g. 'Tomorrow (Wednesday)', 'Thursday'). Optional."
+            },
+            "slot_id": {
+                "type": "integer",
+                "description": "The numeric ID of the slot if known. Optional."
+            }
+        },
+        required=["patient_phone", "doctor_name", "slot_time"]
+    ),
+    FunctionSchema(
+        name="cancel_appointment",
+        description="Cancel an existing appointment for the caller. Only invoke this AFTER the caller has provided their phone number AND you have read the phone number back to them and received their confirmation.",
+        properties={
+            "patient_phone": {
+                "type": "string",
+                "description": "The caller's confirmed phone number (digits only, e.g. '9876543210')."
+            },
+            "appointment_id": {
+                "type": "integer",
+                "description": "Appointment ID if known. Optional."
+            }
+        },
+        required=["patient_phone"]
+    )
+]
+
 # Function definitions formatted for Google GenAI / Pipecat LLM function schemas
 TOOLS_DEFINITIONS = [
     {

@@ -209,13 +209,22 @@ export function useVoiceCall({ onAppointmentUpdated }: UseVoiceCallProps = {}) {
             recognition.lang = 'en-US';
 
             recognition.onresult = (e: any) => {
-              if (isAgentSpeakingRef.current) return; // avoid speaker echo
               const lastIdx = e.results.length - 1;
-              const spoken = e.results[lastIdx][0]?.transcript;
-              if (spoken && spoken.trim()) {
-                console.log('User spoken voice captured:', spoken.trim());
-                sendTextMessage(spoken.trim());
+              const spoken = e.results[lastIdx][0]?.transcript?.trim();
+              if (!spoken) return;
+
+              // Check if agent is speaking
+              if (isAgentSpeakingRef.current) {
+                const lower = spoken.toLowerCase();
+                // Allow confirmation / short answers through even during speech
+                const isQuickAnswer = /^(yes|yeah|yep|yup|correct|right|sure|no|nope|ok|okay|\d+|cancel|proceed)/.test(lower);
+                if (!isQuickAnswer) {
+                  return; // ignore potential speaker echo
+                }
               }
+
+              console.log('User spoken voice captured:', spoken);
+              sendTextMessage(spoken);
             };
 
             recognition.onerror = (e: any) => {
@@ -223,11 +232,15 @@ export function useVoiceCall({ onAppointmentUpdated }: UseVoiceCallProps = {}) {
             };
 
             recognition.onend = () => {
-              // Automatically keep listening while call is connected
+              // Automatically keep listening while call is connected with debounce to avoid InvalidStateError
               if (callStatusRef.current === 'connected') {
-                try {
-                  recognition.start();
-                } catch {}
+                setTimeout(() => {
+                  try {
+                    if (callStatusRef.current === 'connected') {
+                      recognition.start();
+                    }
+                  } catch {}
+                }, 300);
               }
             };
 
@@ -271,15 +284,23 @@ export function useVoiceCall({ onAppointmentUpdated }: UseVoiceCallProps = {}) {
                 utterance.rate = 1.0;
                 utterance.pitch = 1.05;
 
+                // Retain reference on window to prevent Chrome GC bug
+                (window as any)._activeUtterance = utterance;
                 isAgentSpeakingRef.current = true;
+
                 utterance.onend = () => {
-                  setTimeout(() => {
-                    isAgentSpeakingRef.current = false;
-                  }, 400);
-                };
-                utterance.onerror = () => {
+                  (window as any)._activeUtterance = null;
                   isAgentSpeakingRef.current = false;
                 };
+                utterance.onerror = () => {
+                  (window as any)._activeUtterance = null;
+                  isAgentSpeakingRef.current = false;
+                };
+
+                // Safety fallback timeout: clear agent speaking flag after 7s max
+                setTimeout(() => {
+                  isAgentSpeakingRef.current = false;
+                }, 7000);
 
                 window.speechSynthesis.speak(utterance);
               } catch {}

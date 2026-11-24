@@ -137,6 +137,17 @@ export const PhoneCallModal: React.FC<PhoneCallModalProps> = ({
     "Cancel my appointment for 9876543210",
   ];
 
+  const lastMsg = transcripts.length > 0 ? transcripts[transcripts.length - 1] : null;
+  const isAwaitingConfirmation = Boolean(
+    callStatus === 'connected' &&
+    lastMsg &&
+    lastMsg.speaker === 'agent' &&
+    (lastMsg.text.toLowerCase().includes('confirm') ||
+     lastMsg.text.toLowerCase().includes('is your phone') ||
+     lastMsg.text.toLowerCase().includes('should i book') ||
+     lastMsg.text.toLowerCase().includes('should i cancel'))
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
       {/* Smartphone Shell Frame */}
@@ -256,6 +267,27 @@ export const PhoneCallModal: React.FC<PhoneCallModalProps> = ({
 
             <div ref={transcriptEndRef} />
           </div>
+
+          {/* Quick Confirmation Action Bar */}
+          {isAwaitingConfirmation && (
+            <div className="px-3 py-2 bg-emerald-950/90 border-t border-emerald-500/50 flex items-center justify-between gap-2 shadow-lg animate-fade-in">
+              <span className="text-[11px] text-emerald-300 font-medium">Verify your phone:</span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => handleSendPrompt("Yes, that is my number")}
+                  className="px-2.5 py-1 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow transition active:scale-95"
+                >
+                  ✅ Yes, That's My Number
+                </button>
+                <button
+                  onClick={() => handleSendPrompt("No")}
+                  className="px-2 py-1 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition"
+                >
+                  No
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Prompt Suggestions Pills */}
           <div className="px-3 py-1.5 bg-slate-950/60 border-t border-slate-800/80 overflow-x-auto no-scrollbar flex items-center gap-1.5">

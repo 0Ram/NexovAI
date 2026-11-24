@@ -87,19 +87,29 @@ class ConversationalDoctorAssistant:
         event_payload = None
 
         # Check for confirmations
-        is_yes = any(w in text for w in ["yes", "yeah", "correct", "yep", "sure", "that's right", "right", "confirm", "proceed", "please do", "okay", "ok"])
-        is_no = any(w in text for w in ["no", "nope", "wrong", "incorrect", "cancel that", "not that"])
+        is_yes = any(w in text for w in [
+            "yes", "yeah", "yep", "yup", "correct", "right", "sure", "proceed",
+            "confirm", "confirmed", "please", "okay", "ok", "my number",
+            "that is my number", "that's my number", "it is my number", "it's my number",
+            "that's correct", "that is correct", "that is right", "that's right",
+            "book it", "go ahead", "perfect", "done", "fine", "true", "sounds good"
+        ])
+        is_no = any(w in text for w in ["no", "nope", "wrong", "incorrect", "cancel that", "not that", "different number"])
 
         # Update last mentioned doctor if detected
         detected_doc = self._detect_doctor(text)
         if detected_doc:
             self.last_mentioned_doctor = detected_doc
 
+        phone_candidate = self._extract_phone(text)
+
         # State 1: Awaiting Booking Confirmation
         if self.state == "awaiting_booking_confirmation" and self.pending_action:
-            if is_yes:
+            is_same_phone = bool(phone_candidate and phone_candidate == self.pending_action.get("phone"))
+            if is_yes or is_same_phone:
                 res = book_appointment_db(
                     patient_phone=self.pending_action["phone"],
+                    slot_id=self.pending_action.get("slot_id"),
                     doctor_name=self.pending_action["doctor_name"],
                     slot_time=self.pending_action["slot_time"],
                     date=self.pending_action.get("date")
@@ -134,7 +144,8 @@ class ConversationalDoctorAssistant:
 
         # State 2: Awaiting Cancel Confirmation
         elif self.state == "awaiting_cancel_confirmation" and self.pending_action:
-            if is_yes:
+            is_same_phone = bool(phone_candidate and phone_candidate == self.pending_action.get("phone"))
+            if is_yes or is_same_phone:
                 res = cancel_appointment_db(patient_phone=self.pending_action["phone"])
                 if res["success"]:
                     response_text = (
@@ -195,8 +206,9 @@ class ConversationalDoctorAssistant:
                     spoken_phone = self._format_phone_for_speech(phone)
                     doc_name = self.pending_action.get("doctor_name", self.last_mentioned_doctor or "Dr. Rajesh Sharma")
                     time_slot = self.pending_action.get("slot_time", "09:00 AM")
+                    date_slot = self.pending_action.get("date", "Tomorrow")
                     response_text = (
-                        f"Thank you. Just to confirm before booking {doc_name} tomorrow at {time_slot}, is your phone number {spoken_phone}?"
+                        f"Thank you. Just to confirm before booking {doc_name} on {date_slot} at {time_slot}, is your phone number {spoken_phone}?"
                     )
                 else:
                     response_text = "Could you please tell me your 10-digit phone number so I can proceed with the booking?"
@@ -218,29 +230,48 @@ class ConversationalDoctorAssistant:
                     )
                 else:
                     self.last_mentioned_doctor = doc_name
+                    # Find actual available slot in database
+                    avail_slots = get_available_slots(doctor_name=doc_name)
                     time_slot = self._detect_time_slot(text, default_doc=doc_name)
+
+                    matched_slot = None
+                    if avail_slots:
+                        clean_time = time_slot.replace(" ", "").replace(":00", "").lower()
+                        for s in avail_slots:
+                            if s["start_time"] == time_slot or clean_time in s["start_time"].replace(" ", "").replace(":00", "").lower():
+                                matched_slot = s
+                                break
+                        if not matched_slot:
+                            matched_slot = avail_slots[0]
+
+                    slot_id = matched_slot["id"] if matched_slot else None
+                    slot_date = matched_slot["date"] if matched_slot else "Tomorrow"
+                    slot_time = matched_slot["start_time"] if matched_slot else time_slot
+                    doc_name = matched_slot["doctor_name"] if matched_slot else doc_name
 
                     if phone:
                         self.state = "awaiting_booking_confirmation"
                         self.pending_action = {
+                            "slot_id": slot_id,
                             "phone": phone,
                             "doctor_name": doc_name,
-                            "slot_time": time_slot,
-                            "date": "Tomorrow (Wednesday)"
+                            "slot_time": slot_time,
+                            "date": slot_date
                         }
                         spoken_phone = self._format_phone_for_speech(phone)
                         response_text = (
-                            f"I have a slot available with {doc_name} tomorrow at {time_slot}. "
+                            f"I have a slot available with {doc_name} on {slot_date} at {slot_time}. "
                             f"Before I book it, just to confirm, is your phone number {spoken_phone}?"
                         )
                     else:
                         self.state = "awaiting_booking_phone"
                         self.pending_action = {
+                            "slot_id": slot_id,
                             "doctor_name": doc_name,
-                            "slot_time": time_slot,
-                            "date": "Tomorrow (Wednesday)"
+                            "slot_time": slot_time,
+                            "date": slot_date
                         }
-                        response_text = f"Great! I can book {doc_name} for tomorrow at {time_slot}. What is your 10-digit phone number?"
+                        response_text = f"Great! I can book {doc_name} on {slot_date} at {slot_time}. What is your 10-digit phone number?"
 
             # Availability / Doctor inquiry
             elif any(w in text for w in ["available", "availability", "slot", "slots", "doctor", "doctors", "when", "free", "schedule", "starts", "timing", "timings"]):

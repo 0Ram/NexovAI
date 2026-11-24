@@ -172,6 +172,28 @@ def book_appointment_db(patient_phone: str, slot_id: Optional[int] = None, docto
         cursor.execute(query, params)
         target_slot = cursor.fetchone()
 
+        # Fallback 1: If date was specified but not found, retry without strict date filter
+        if not target_slot and date and (doctor_name or slot_time):
+            fallback_query = "SELECT s.*, d.name as doctor_name, d.specialty, d.clinic_room FROM slots s JOIN doctors d ON s.doctor_id = d.id WHERE s.is_booked = 0"
+            f_params = []
+            if doctor_name:
+                fallback_query += " AND LOWER(d.name) LIKE ?"
+                f_params.append(f"%{doctor_name.lower().replace('dr.', '').strip()}%")
+            if slot_time:
+                clean_time = slot_time.lower().replace(" ", "").replace(":00", "")
+                fallback_query += " AND (REPLACE(LOWER(s.start_time), ' ', '') LIKE ? OR LOWER(s.start_time) LIKE ?)"
+                f_params.extend([f"%{clean_time}%", f"%{slot_time.lower()}%"])
+            cursor.execute(fallback_query, f_params)
+            target_slot = cursor.fetchone()
+
+        # Fallback 2: If still not found, pick first available slot for that doctor
+        if not target_slot and doctor_name:
+            cursor.execute(
+                "SELECT s.*, d.name as doctor_name, d.specialty, d.clinic_room FROM slots s JOIN doctors d ON s.doctor_id = d.id WHERE s.is_booked = 0 AND LOWER(d.name) LIKE ? ORDER BY s.id ASC LIMIT 1",
+                (f"%{doctor_name.lower().replace('dr.', '').strip()}%",)
+            )
+            target_slot = cursor.fetchone()
+
     if not target_slot:
         conn.close()
         return {"success": False, "error": "No matching available slot found. Please check available slots first."}
