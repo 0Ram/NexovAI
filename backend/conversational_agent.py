@@ -17,24 +17,57 @@ class ConversationalDoctorAssistant:
     """
     def __init__(self):
         self.state = "idle" # idle, awaiting_booking_phone, awaiting_booking_confirmation, awaiting_cancel_phone, awaiting_cancel_confirmation
-        self.pending_action = None # Dict with details of booking/cancellation waiting for confirmation
+        self.pending_action: Optional[Dict[str, Any]] = None # Details of action waiting for confirmation
         self.history: List[Dict[str, str]] = []
+        self.last_mentioned_doctor: Optional[str] = None
 
     def reset(self):
         self.state = "idle"
         self.pending_action = None
         self.history = []
+        self.last_mentioned_doctor = None
 
     def _extract_phone(self, text: str) -> Optional[str]:
-        # Extract sequences of digits, spaces or dashes
         digits = clean_phone_number(text)
         if len(digits) >= 10:
-            return digits[-10:] # take last 10 digits
+            return digits[-10:]
         return None
 
     def _format_phone_for_speech(self, phone: str) -> str:
-        # Formats phone like "9 8 7 6 5 4 3 2 1 0" for clear speech synthesis
         return " ".join(list(phone))
+
+    def _detect_doctor(self, text: str) -> Optional[str]:
+        """Detects any of the 4 doctors or their specialties."""
+        t = text.lower()
+        if any(w in t for w in ["sharma", "rajesh", "cardio", "cardiologist", "heart"]):
+            return "Dr. Rajesh Sharma"
+        elif any(w in t for w in ["iyer", "ananya", "derma", "dermatol", "dermatologist", "skin", "hair", "acne"]):
+            return "Dr. Ananya Iyer"
+        elif any(w in t for w in ["patel", "priya", "general", "medicine", "physician", "family", "fever", "cough", "cold"]):
+            return "Dr. Priya Patel"
+        elif any(w in t for w in ["malhotra", "vikram", "ortho", "orthopedic", "bone", "joint", "knee", "spine", "back"]):
+            return "Dr. Vikram Malhotra"
+        return None
+
+    def _detect_time_slot(self, text: str, default_doc: Optional[str] = None) -> str:
+        """Extracts desired slot time from text or picks first available slot for doctor."""
+        t = text.lower()
+        if any(w in t for w in ["9:00", "9 am", "09:00", "9am"]):
+            return "09:00 AM"
+        if any(w in t for w in ["10:30", "10:30 am", "10:30am", "10 am"]):
+            return "10:30 AM"
+        if any(w in t for w in ["2:00", "2 pm", "02:00", "2pm"]) and "09" not in t:
+            return "02:00 PM"
+        if any(w in t for w in ["4:30", "4:30 pm", "4:30pm", "4 pm"]):
+            return "04:30 PM"
+        
+        # If doctor is known, find their first open slot
+        if default_doc:
+            slots = get_available_slots(doctor_name=default_doc)
+            if slots:
+                return slots[0]["start_time"]
+
+        return "10:30 AM"
 
     async def process_user_utterance(self, user_text: str) -> Dict[str, Any]:
         """Processes user utterance and returns response text and optional action event."""
@@ -43,14 +76,18 @@ class ConversationalDoctorAssistant:
         response_text = ""
         event_payload = None
 
-        # Check if caller is confirming an action
+        # Check for confirmations
         is_yes = any(w in text for w in ["yes", "yeah", "correct", "yep", "sure", "that's right", "right", "confirm", "proceed"])
         is_no = any(w in text for w in ["no", "nope", "wrong", "incorrect", "cancel that", "not that"])
+
+        # Update last mentioned doctor if found in utterance
+        detected_doc = self._detect_doctor(text)
+        if detected_doc:
+            self.last_mentioned_doctor = detected_doc
 
         # State 1: Awaiting Booking Confirmation
         if self.state == "awaiting_booking_confirmation" and self.pending_action:
             if is_yes:
-                # Proceed with booking
                 res = book_appointment_db(
                     patient_phone=self.pending_action["phone"],
                     doctor_name=self.pending_action["doctor_name"],
@@ -118,7 +155,7 @@ class ConversationalDoctorAssistant:
 
         # State 3: Normal Conversation & Inquiries
         else:
-            # Check for cancellation request
+            # Cancellation request
             if "cancel" in text:
                 phone = self._extract_phone(text)
                 if phone:
@@ -140,66 +177,41 @@ class ConversationalDoctorAssistant:
                 else:
                     response_text = "Please tell me your 10-digit phone number so I can look up your appointment."
 
-            # Check for booking request
+            # Booking request
             elif "book" in text or "schedule" in text or "reserve" in text:
                 phone = self._extract_phone(text)
-                # Detect doctor requested
-                doc_name = None
-                if "sharma" in text or "rajesh" in text or "cardio" in text:
-                    doc_name = "Dr. Rajesh Sharma"
-                elif "iyer" in text or "ananya" in text or "dermatol" in text or "skin" in text:
-                    doc_name = "Dr. Ananya Iyer"
-                elif "patel" in text or "priya" in text or "general" in text or "medicine" in text:
-                    doc_name = "Dr. Priya Patel"
-                elif "malhotra" in text or "vikram" in text or "ortho" in text or "bone" in text:
-                    doc_name = "Dr. Vikram Malhotra"
-
-                # Detect slot time
-                time_slot = None
-                for t in ["9:00", "9 am", "09:00", "9"]:
-                    if t in text:
-                        time_slot = "09:00 AM"
-                        break
-                for t in ["10:30", "10:30 am", "10:30am"]:
-                    if t in text:
-                        time_slot = "10:30 AM"
-                        break
-                for t in ["2:00", "2 pm", "02:00", "2"]:
-                    if t in text and "09" not in text:
-                        time_slot = "02:00 PM"
-                        break
-                for t in ["4:30", "4:30 pm", "4:30pm"]:
-                    if t in text:
-                        time_slot = "04:30 PM"
-                        break
-
-                if not time_slot:
-                    time_slot = "10:30 AM" # default convenient morning slot
+                doc_name = detected_doc or self.last_mentioned_doctor
 
                 if not doc_name:
-                    doc_name = "Dr. Rajesh Sharma"
-
-                if phone:
-                    self.state = "awaiting_booking_confirmation"
-                    self.pending_action = {
-                        "phone": phone,
-                        "doctor_name": doc_name,
-                        "slot_time": time_slot,
-                        "date": "Tomorrow (Wednesday)"
-                    }
-                    spoken_phone = self._format_phone_for_speech(phone)
                     response_text = (
-                        f"I have a slot available with {doc_name} tomorrow at {time_slot}. "
-                        f"Before I book it, just to confirm, is your phone number {spoken_phone}?"
+                        "Which doctor would you like to book with? We have Dr. Rajesh Sharma (Cardiology), "
+                        "Dr. Ananya Iyer (Dermatology), Dr. Priya Patel (General Medicine), and Dr. Vikram Malhotra (Orthopedics)."
                     )
                 else:
-                    self.state = "awaiting_booking_phone"
-                    self.pending_action = {
-                        "doctor_name": doc_name,
-                        "slot_time": time_slot,
-                        "date": "Tomorrow (Wednesday)"
-                    }
-                    response_text = f"I'd be glad to book {doc_name} for tomorrow at {time_slot}. What is your phone number?"
+                    self.last_mentioned_doctor = doc_name
+                    time_slot = self._detect_time_slot(text, default_doc=doc_name)
+
+                    if phone:
+                        self.state = "awaiting_booking_confirmation"
+                        self.pending_action = {
+                            "phone": phone,
+                            "doctor_name": doc_name,
+                            "slot_time": time_slot,
+                            "date": "Tomorrow (Wednesday)"
+                        }
+                        spoken_phone = self._format_phone_for_speech(phone)
+                        response_text = (
+                            f"I have a slot available with {doc_name} tomorrow at {time_slot}. "
+                            f"Before I book it, just to confirm, is your phone number {spoken_phone}?"
+                        )
+                    else:
+                        self.state = "awaiting_booking_phone"
+                        self.pending_action = {
+                            "doctor_name": doc_name,
+                            "slot_time": time_slot,
+                            "date": "Tomorrow (Wednesday)"
+                        }
+                        response_text = f"I would be happy to book {doc_name} for tomorrow at {time_slot}. What is your phone number?"
 
             elif self.state == "awaiting_booking_phone":
                 phone = self._extract_phone(text)
@@ -207,15 +219,18 @@ class ConversationalDoctorAssistant:
                     self.state = "awaiting_booking_confirmation"
                     self.pending_action["phone"] = phone
                     spoken_phone = self._format_phone_for_speech(phone)
+                    doc_name = self.pending_action.get("doctor_name", "the doctor")
+                    time_slot = self.pending_action.get("slot_time", "10:30 AM")
                     response_text = (
-                        f"Thank you. Just to confirm before booking, is your phone number {spoken_phone}?"
+                        f"Thank you. Just to confirm before booking {doc_name} at {time_slot}, is your phone number {spoken_phone}?"
                     )
                 else:
                     response_text = "Could you please state your 10-digit phone number so I can book your appointment?"
 
-            # Check for availability / doctor inquiry
-            elif any(w in text for w in ["available", "availability", "slot", "slots", "doctor", "doctors", "when", "time", "free"]):
-                target_doc = None
+            # Availability / Doctor inquiry
+            elif any(w in text for w in ["available", "availability", "slot", "slots", "doctor", "doctors", "when", "time", "free", "schedule"]):
+                target_doc = detected_doc
+
                 target_specialty = None
                 if "cardio" in text:
                     target_specialty = "Cardiology"
@@ -226,30 +241,22 @@ class ConversationalDoctorAssistant:
                 elif "ortho" in text or "bone" in text or "joint" in text:
                     target_specialty = "Orthopedics"
 
-                if "sharma" in text or "rajesh" in text:
-                    target_doc = "Dr. Rajesh Sharma"
-                elif "iyer" in text or "ananya" in text:
-                    target_doc = "Dr. Ananya Iyer"
-                elif "patel" in text or "priya" in text:
-                    target_doc = "Dr. Priya Patel"
-                elif "malhotra" in text or "vikram" in text:
-                    target_doc = "Dr. Vikram Malhotra"
-
                 slots = get_available_slots(doctor_name=target_doc, specialty=target_specialty)
                 if slots:
                     first_three = slots[:3]
                     slot_desc = ", ".join([f"{s['doctor_name']} on {s['date']} at {s['start_time']}" for s in first_three])
-                    response_text = f"We have several open slots. For example: {slot_desc}. Would you like me to book one of these for you?"
+                    doc_label = f"with {target_doc}" if target_doc else "available"
+                    response_text = f"We have several open slots {doc_label}. For example: {slot_desc}. Would you like me to book one of these for you?"
                 else:
                     response_text = "I checked our schedule, but no open slots were found for that doctor. Would you like to check with another specialist?"
 
-            # General greeting or other query
+            # General greetings
             elif any(w in text for w in ["hi", "hello", "hey", "good morning", "good afternoon"]):
                 response_text = "Hello! I can help you check doctor availability, book an appointment, or cancel an existing one. How can I assist you today?"
             elif any(w in text for w in ["bye", "goodbye", "thank", "thanks"]):
                 response_text = "You're welcome! Thank you for calling Nexov Health Clinic. Have a wonderful day!"
             else:
-                response_text = "I can check doctor availability, book an appointment, or cancel a booking. Would you like to check available slots with one of our doctors?"
+                response_text = "I can check doctor availability, book an appointment, or cancel a booking with Dr. Rajesh Sharma, Dr. Ananya Iyer, Dr. Priya Patel, or Dr. Vikram Malhotra. Which doctor or specialty would you like?"
 
         self.history.append({"speaker": "agent", "text": response_text})
         return {

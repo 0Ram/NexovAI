@@ -125,8 +125,14 @@ export const PhoneCallModal: React.FC<PhoneCallModalProps> = ({
   };
 
   const promptSuggestions = [
+    "What slots are available for Dr. Ananya Iyer?",
+    "Book Dr. Ananya Iyer tomorrow at 10:30 AM, my number is 9876543210",
+    "What slots are available for Dr. Vikram Malhotra?",
+    "Book Dr. Vikram Malhotra tomorrow at 2:00 PM, my number is 9876543210",
+    "What slots are available for Dr. Priya Patel?",
+    "Book Dr. Priya Patel tomorrow at 9:00 AM, my number is 9876543210",
     "What slots are available for Dr. Rajesh Sharma?",
-    "Book 10:30 AM tomorrow, my number is 9876543210",
+    "Book Dr. Rajesh Sharma tomorrow at 10:30 AM, my number is 9876543210",
     "Yes, that is my number",
     "Cancel my appointment for 9876543210",
   ];

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Doctor, Slot } from '../types';
-import { Calendar, Clock, MapPin, Award, CheckCircle, Search } from 'lucide-react';
+import { Calendar, Clock, MapPin, Award, CheckCircle, Search, Phone } from 'lucide-react';
 
 interface DoctorsSectionProps {
   doctors: Doctor[];
   slots: Slot[];
   selectedDoctorId: number | null;
   onSelectDoctor: (doctorId: number | null) => void;
+  onCallDoctor?: (doctorName: string) => void;
 }
 
 export const DoctorsSection: React.FC<DoctorsSectionProps> = ({
@@ -14,6 +15,7 @@ export const DoctorsSection: React.FC<DoctorsSectionProps> = ({
   slots,
   selectedDoctorId,
   onSelectDoctor,
+  onCallDoctor,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
@@ -143,6 +145,18 @@ export const DoctorsSection: React.FC<DoctorsSectionProps> = ({
                         </div>
                       );
                     })}
+                  </div>
+
+                  {/* Call Doctor CTA */}
+                  <div className="mt-3 pt-2.5 flex items-center justify-between">
+                    <span className="text-[11px] text-slate-500">Tap to schedule with AI</span>
+                    <button
+                      onClick={() => onCallDoctor && onCallDoctor(doc.name)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white rounded-xl text-xs font-semibold border border-emerald-500/30 transition shadow-sm"
+                    >
+                      <Phone className="w-3.5 h-3.5" />
+                      <span>Book with {doc.name.split(" ")[1]}</span>
+                    </button>
                   </div>
                 </div>
               </div>

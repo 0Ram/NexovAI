@@ -106,6 +106,14 @@ export function App() {
     startCall();
   };
 
+  const handleCallDoctor = (doctorName: string) => {
+    setIsModalOpen(true);
+    startCall();
+    setTimeout(() => {
+      sendTextMessage(`What slots are available for ${doctorName}?`);
+    }, 1800);
+  };
+
   const availableSlotsCount = slots.filter((s) => s.is_booked === 0).length;
   const bookedAppointmentsCount = appointments.filter((a) => a.status === 'booked').length;
 
@@ -175,6 +183,7 @@ export function App() {
               slots={slots}
               selectedDoctorId={null}
               onSelectDoctor={() => {}}
+              onCallDoctor={handleCallDoctor}
             />
 
             <AppointmentsSection
