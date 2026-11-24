@@ -92,6 +92,7 @@ export function App() {
     isMuted,
     transcripts,
     latestBooking,
+    latestCancellation,
     analyserNode,
     startCall,
     endCall,
@@ -230,6 +231,7 @@ export function App() {
         isMuted={isMuted}
         transcripts={transcripts}
         latestBooking={latestBooking}
+        latestCancellation={latestCancellation}
         analyserNode={analyserNode}
         onToggleMute={toggleMute}
         onEndCall={endCall}

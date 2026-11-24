@@ -21,6 +21,9 @@ class ConversationalDoctorAssistant:
         self.history: List[Dict[str, str]] = []
         self.last_mentioned_doctor: Optional[str] = None
         self.last_offered_time: Optional[str] = None
+        self.last_action: Optional[str] = None
+        self.last_booked_info: Optional[Dict[str, Any]] = None
+        self.last_cancelled_info: Optional[Dict[str, Any]] = None
 
     def reset(self):
         self.state = "idle"
@@ -28,6 +31,9 @@ class ConversationalDoctorAssistant:
         self.history = []
         self.last_mentioned_doctor = None
         self.last_offered_time = None
+        self.last_action = None
+        self.last_booked_info = None
+        self.last_cancelled_info = None
 
     def _extract_phone(self, text: str) -> Optional[str]:
         digits = clean_phone_number(text)
@@ -118,13 +124,15 @@ class ConversationalDoctorAssistant:
                     response_text = (
                         f"Thank you! Your appointment with {res['doctor_name']} ({res['specialty']}) "
                         f"has been confirmed for {res['date']} at {res['time']}. "
-                        f"Your confirmation ID is #{res['appointment_id']}."
+                        f"Your confirmation ID is #{res['appointment_id']}. Is there anything else I can help you with today?"
                     )
                     event_payload = {
                         "type": "appointment_updated",
                         "action": "booked",
                         "data": res
                     }
+                    self.last_action = "booked"
+                    self.last_booked_info = res
                 else:
                     response_text = f"I'm sorry, but {res['error']}"
                 self.state = "idle"
@@ -150,13 +158,16 @@ class ConversationalDoctorAssistant:
                 if res["success"]:
                     response_text = (
                         f"Your appointment with {res['doctor_name']} on {res['date']} at {res['time']} "
-                        f"has been successfully cancelled."
+                        f"has been successfully cancelled. Thank you for calling Nexov Health Clinic. Have a wonderful day. Goodbye!"
                     )
                     event_payload = {
                         "type": "appointment_updated",
                         "action": "cancelled",
-                        "data": res
+                        "data": res,
+                        "auto_end_call": True
                     }
+                    self.last_action = "cancelled"
+                    self.last_cancelled_info = res
                 else:
                     response_text = f"I checked our records, but {res['error']}"
                 self.state = "idle"
@@ -304,11 +315,43 @@ class ConversationalDoctorAssistant:
                 else:
                     response_text = "I checked our schedule, but no open slots were found. Would you like to check with another specialist?"
 
-            # General greetings
+            # If user repeats confirmation after already booked
+            elif self.last_action == "booked" and (is_yes or "that is my number" in text or "my number" in text):
+                doc_name = self.last_booked_info.get("doctor_name", "your doctor") if self.last_booked_info else "your doctor"
+                time_slot = self.last_booked_info.get("time", "") if self.last_booked_info else ""
+                date_slot = self.last_booked_info.get("date", "") if self.last_booked_info else ""
+                app_id = self.last_booked_info.get("appointment_id", "") if self.last_booked_info else ""
+                response_text = (
+                    f"Your appointment with {doc_name} is already booked and confirmed for {date_slot} at {time_slot} "
+                    f"(ID #{app_id}). Is there anything else I can help you with, or should I end the call?"
+                )
+
+            # User answering "no" after an action is completed (e.g. "no that's all", "nothing else")
+            elif self.last_action in ["booked", "cancelled"] and (is_no or "nothing" in text or "that's all" in text or "thats all" in text or "all set" in text):
+                response_text = "Understood! Thank you for calling Nexov Health Clinic. Have a wonderful day. Goodbye!"
+                event_payload = {
+                    "type": "call_ended",
+                    "reason": "user_completed",
+                    "auto_end_call": True
+                }
+
+            # General greetings & completions
+            elif any(w in text for w in ["end call", "hang up", "bye", "goodbye", "stop call", "close call"]):
+                response_text = "Thank you for calling Nexov Health Clinic. Have a wonderful day! Goodbye."
+                event_payload = {
+                    "type": "call_ended",
+                    "reason": "user_completed",
+                    "auto_end_call": True
+                }
+            elif any(w in text for w in ["thank", "thanks"]):
+                response_text = "You're very welcome! Thank you for calling Nexov Health Clinic. Have a wonderful day. Goodbye!"
+                event_payload = {
+                    "type": "call_ended",
+                    "reason": "user_completed",
+                    "auto_end_call": True
+                }
             elif any(w in text for w in ["hi", "hello", "hey", "good morning", "good afternoon"]):
                 response_text = "Hello! I can help you check doctor availability, book an appointment, or cancel an existing one. How can I assist you today?"
-            elif any(w in text for w in ["bye", "goodbye", "thank", "thanks"]):
-                response_text = "You're welcome! Thank you for calling Nexov Health Clinic. Have a wonderful day!"
             else:
                 response_text = "I can check doctor availability, book an appointment, or cancel a booking with Dr. Rajesh Sharma, Dr. Ananya Iyer, Dr. Priya Patel, or Dr. Vikram Malhotra. Which doctor or specialty would you like?"
 

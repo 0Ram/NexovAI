@@ -25,6 +25,7 @@ interface PhoneCallModalProps {
   isMuted: boolean;
   transcripts: TranscriptMessage[];
   latestBooking: BookingEventData | null;
+  latestCancellation?: BookingEventData | null;
   analyserNode: AnalyserNode | null;
   onToggleMute: () => void;
   onEndCall: () => void;
@@ -39,6 +40,7 @@ export const PhoneCallModal: React.FC<PhoneCallModalProps> = ({
   isMuted,
   transcripts,
   latestBooking,
+  latestCancellation,
   analyserNode,
   onToggleMute,
   onEndCall,
@@ -125,27 +127,32 @@ export const PhoneCallModal: React.FC<PhoneCallModalProps> = ({
   };
 
   const promptSuggestions = [
+    "What slots are available for Dr. Rajesh Sharma?",
+    "Book Dr. Rajesh Sharma tomorrow at 10:30 AM, my number is 9876543210",
     "What slots are available for Dr. Ananya Iyer?",
     "Book Dr. Ananya Iyer tomorrow at 10:30 AM, my number is 9876543210",
     "What slots are available for Dr. Vikram Malhotra?",
-    "Book Dr. Vikram Malhotra tomorrow at 2:00 PM, my number is 9876543210",
     "What slots are available for Dr. Priya Patel?",
-    "Book Dr. Priya Patel tomorrow at 9:00 AM, my number is 9876543210",
-    "What slots are available for Dr. Rajesh Sharma?",
-    "Book Dr. Rajesh Sharma tomorrow at 10:30 AM, my number is 9876543210",
-    "Yes, that is my number",
+    "Cancel my appointment for 1234567898",
     "Cancel my appointment for 9876543210",
+    "That's all, thank you! Goodbye",
   ];
 
   const lastMsg = transcripts.length > 0 ? transcripts[transcripts.length - 1] : null;
+  const lastTextLower = lastMsg?.text?.toLowerCase() || '';
   const isAwaitingConfirmation = Boolean(
     callStatus === 'connected' &&
     lastMsg &&
     lastMsg.speaker === 'agent' &&
-    (lastMsg.text.toLowerCase().includes('confirm') ||
-     lastMsg.text.toLowerCase().includes('is your phone') ||
-     lastMsg.text.toLowerCase().includes('should i book') ||
-     lastMsg.text.toLowerCase().includes('should i cancel'))
+    lastMsg.text.trim().endsWith('?') &&
+    !lastTextLower.includes('has been confirmed') &&
+    !lastTextLower.includes('successfully cancelled') &&
+    !lastTextLower.includes('already booked') &&
+    (lastTextLower.includes('just to confirm') ||
+     lastTextLower.includes('please confirm') ||
+     lastTextLower.includes('is your phone number') ||
+     lastTextLower.includes('should i book') ||
+     lastTextLower.includes('should i cancel'))
   );
 
   return (
@@ -260,6 +267,35 @@ export const PhoneCallModal: React.FC<PhoneCallModalProps> = ({
                   <div className="flex justify-between">
                     <span className="text-slate-400">Phone:</span>
                     <span className="font-mono text-slate-300">{latestBooking.patient_phone}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Live Cancellation Confirmation Card inside Phone */}
+            {latestCancellation && (
+              <div className="bg-gradient-to-br from-rose-950/80 to-slate-900 border border-rose-500/40 rounded-2xl p-3 my-2 text-slate-200 shadow-xl animate-fade-in">
+                <div className="flex items-center justify-between pb-1.5 border-b border-rose-500/20 mb-2">
+                  <div className="flex items-center gap-1.5 text-rose-400 font-semibold text-xs">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Appointment Cancelled</span>
+                  </div>
+                  <span className="text-[10px] font-mono bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded">
+                    Cancelled
+                  </span>
+                </div>
+                <div className="text-[11px] space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Doctor:</span>
+                    <span className="font-medium text-white">{latestCancellation.doctor_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Time:</span>
+                    <span className="font-medium text-rose-300">{latestCancellation.date} • {latestCancellation.time}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Phone:</span>
+                    <span className="font-mono text-slate-300">{latestCancellation.patient_phone}</span>
                   </div>
                 </div>
               </div>

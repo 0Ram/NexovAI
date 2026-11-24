@@ -12,6 +12,7 @@ export function useVoiceCall({ onAppointmentUpdated }: UseVoiceCallProps = {}) {
   const [transcripts, setTranscripts] = useState<TranscriptMessage[]>([]);
   const [callDuration, setCallDuration] = useState(0);
   const [latestBooking, setLatestBooking] = useState<BookingEventData | null>(null);
+  const [latestCancellation, setLatestCancellation] = useState<BookingEventData | null>(null);
 
   const socketRef = useRef<WebSocket | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -136,6 +137,7 @@ export function useVoiceCall({ onAppointmentUpdated }: UseVoiceCallProps = {}) {
     setCallDuration(0);
     setTranscripts([]);
     setLatestBooking(null);
+    setLatestCancellation(null);
     phoneSounds.startRinging();
 
     // 1. Initialize Web Audio Context and Analyser
@@ -308,9 +310,23 @@ export function useVoiceCall({ onAppointmentUpdated }: UseVoiceCallProps = {}) {
           } else if (msg.type === 'appointment_updated') {
             if (msg.action === 'booked' && msg.data) {
               setLatestBooking(msg.data);
+            } else if (msg.action === 'cancelled' && msg.data) {
+              setLatestCancellation(msg.data);
             }
             if (onAppointmentUpdated) {
               onAppointmentUpdated({ action: msg.action, data: msg.data });
+            }
+            if (msg.auto_end_call) {
+              // Wait 3.8s for Nexa's spoken goodbye to complete before ending call
+              setTimeout(() => {
+                endCall();
+              }, 3800);
+            }
+          } else if (msg.type === 'call_ended') {
+            if (msg.auto_end_call) {
+              setTimeout(() => {
+                endCall();
+              }, 3500);
             }
           }
         } catch (e) {
@@ -350,6 +366,7 @@ export function useVoiceCall({ onAppointmentUpdated }: UseVoiceCallProps = {}) {
     isMuted,
     transcripts,
     latestBooking,
+    latestCancellation,
     analyserNode: analyserRef.current,
     startCall,
     endCall,
